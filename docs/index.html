@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Homunculus Calculator — keep or restart?</title>
+  <meta name="description" content="Pre-renewal Ragnarok Online homunculus calculator for Lif, Amistr, Filir and Vanilmirth: exact stat growth odds, keep-or-restart advice, and combat stats, based on Hercules server source.">
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <img src="favicon.ico" alt="" width="40" height="40">
+    <div>
+      <h1>Homunculus Calculator</h1>
+      <p class="subtitle">Pre-renewal · growth rules taken from the Hercules server source</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <form id="form" class="panel inputs" autocomplete="off" onsubmit="return false">
+      <label>Homunculus
+        <select id="homun">
+          <option value="lif">Lif</option>
+          <option value="amistr">Amistr</option>
+          <option value="filir">Filir</option>
+          <option value="vanilmirth">Vanilmirth</option>
+        </select>
+      </label>
+      <p class="hint priority" id="priorityLine"></p>
+
+      <h2 id="yourTitle">Your homunculus</h2>
+      <p class="hint">Use the numbers from the homunculus status window (without skill bonuses) or <code>@homstats</code>.</p>
+
+      <div class="grid-2">
+        <label>Level <input type="number" id="level" min="1" max="99" required></label>
+        <label id="skillWrap"><span id="skillName">Skill</span>
+          <select id="skill">
+            <option value="0">Not learned</option>
+            <option value="1">Lv 1</option>
+            <option value="2">Lv 2</option>
+            <option value="3">Lv 3</option>
+            <option value="4">Lv 4</option>
+            <option value="5">Lv 5</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid-3">
+        <label>STR <input type="number" id="str" min="0"></label>
+        <label>AGI <input type="number" id="agi" min="0"></label>
+        <label>VIT <input type="number" id="vit" min="0"></label>
+        <label>INT <input type="number" id="int" min="0"></label>
+        <label>DEX <input type="number" id="dex" min="0"></label>
+        <label>LUK <input type="number" id="luk" min="0"></label>
+      </div>
+      <div class="grid-2">
+        <label>Max HP <input type="number" id="hp" min="0"></label>
+        <label>Max SP <input type="number" id="sp" min="0"></label>
+      </div>
+
+      <label class="check"><input type="checkbox" id="evolved"> Already evolved</label>
+
+      <h2>Your goal</h2>
+      <div class="grid-2">
+        <label>Stat <select id="focus"></select></label>
+        <label>Target at Lv 99 <input type="number" id="target" min="1"></label>
+      </div>
+      <label class="check" id="countEvoWrap"><input type="checkbox" id="countEvo"> <span id="countEvoText">Count the evolution bonus toward the target</span></label>
+
+      <label>How painful is a restart?
+        <select id="restart">
+          <option value="1">Free — ignore it</option>
+          <option value="10">Like re-leveling 1 → 10</option>
+          <option value="20">Like re-leveling 1 → 20</option>
+          <option value="30">Like re-leveling 1 → 30</option>
+          <option value="40">Like re-leveling 1 → 40</option>
+          <option value="50">Like re-leveling 1 → 50</option>
+        </select>
+      </label>
+      <p class="hint" id="restartHint"></p>
+
+      <button type="button" id="reset" class="secondary">Reset to level 1</button>
+    </form>
+
+    <section class="results">
+      <div id="verdict" class="panel verdict"></div>
+
+      <div class="panel">
+        <h2 id="chartTitle">Growth</h2>
+        <div id="chart" class="chart"></div>
+        <p class="legend">
+          <span class="key band"></span> <span id="bandLabel">Middle 80%</span>
+          <span class="key median"></span> Median
+          <span class="key keep"></span> Keep line
+          <span class="key you"></span> You
+        </p>
+      </div>
+
+      <div class="panel">
+        <h2 id="checkpointTitle">Keep checkpoints</h2>
+        <p class="hint" id="checkpointHint"></p>
+        <div class="table-wrap"><table id="checkpoints" class="compact"></table></div>
+      </div>
+
+      <div class="panel">
+        <h2>Stat grades</h2>
+        <p class="hint">Stats are listed in priority order. Percentile = share of homunculi of the same type and level with a lower stat. Grades: S top 10%, A top 30%, B middle 40%, C bottom 30%, D bottom 10%.</p>
+        <div class="table-wrap"><table id="grades"></table></div>
+        <p id="overall" class="overall"></p>
+      </div>
+
+      <div class="panel">
+        <h2>Level 99 projection</h2>
+        <div class="table-wrap"><table id="projection"></table></div>
+      </div>
+
+      <div class="panel">
+        <h2>Combat stats</h2>
+        <div class="table-wrap"><table id="combat"></table></div>
+        <p class="hint">Crit is 0 on a default Hercules server: <code>enable_critical: 17</code> only gives crits to players and mercenaries. VIT doesn't raise a homunculus's Max HP and INT doesn't raise its Max SP; HP and SP are separate rolls each level.</p>
+      </div>
+
+      <details class="panel about">
+        <summary>How the math works</summary>
+        <div id="about">
+          <p><strong>Growth.</strong> Each level, every stat rolls a random number between the homunculus's minimum and maximum growth (in tenths of a point) and the server throws away the fraction (<code>homunculus_levelup</code>). HP and SP roll whole numbers. Evolution adds a one-time bonus to every stat; the evolved form keeps the same growth table. The odds for <span id="aboutName">this homunculus</span>:</p>
+          <div class="table-wrap"><table id="growthTable" class="compact"></table></div>
+          <p><strong>Odds.</strong> All chances are exact distributions (sums of those per-level rolls), not approximations.</p>
+          <p><strong>Keep or restart.</strong> The advice minimises the total homunculus EXP you expect to spend before you own a level 99 homunculus that meets your target, counting the restart cost you chose. At each level it compares two options: keep going, and restart later if it falls behind, or start over now. The keep line is the lowest stat at which keeping is cheaper. Early levels cost almost no EXP, so the keep line starts out strict and relaxes as more EXP is at stake.</p>
+          <p><strong>Build score.</strong> Your priority order weights the six stats: the #1 stat counts 6×, #2 counts 5×, and so on down to 1× for #6. The score's percentile is exact too.</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    Based on Hercules pre-renewal data (<code>homunculus_db.conf</code>, <code>exp_group_db.conf</code>, <code>homunculus.c</code>, <code>status.c</code>). Servers with custom growth tables will differ.
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
